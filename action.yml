@@ -1,0 +1,52 @@
+name: Docker Deployment
+author: Kyrylo Kupin <kyrylo.kupin@gmail.com>
+description: A GitHub Action that supports docker-compose and Docker Swarm deployments
+inputs:
+  remote_docker_host:
+    description: Remote Docker host, i. e. resolvable domain name or ip
+    required: true
+  remote_docker_user:
+    description: Remote Docker user, i. e. root
+    required: true
+  remote_docker_port:
+    description: Remote Docker ssh port, i. e. 22
+    required: false
+    default: '22'
+  base64_ssh_public_key:
+    description: Remote Docker SSH public key, i. e. the contents of ~/.ssh/known_hosts for the host domain name or ip
+    required: true
+  base64_ssh_private_key:
+    description: SSH private key used to connect to the docker host
+    required: true
+  args:
+    description: Deployment command args, i. e. up -d --build
+    required: true
+    default: 'up -d --build'
+
+runs:
+  using: composite
+  steps:
+    - name: Add ssh config
+      shell: bash
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ inputs.base64_ssh_public_key }}" | base64 --decode >> ~/.ssh/known_hosts
+        echo "${{ inputs.base64_ssh_private_key }}" | base64 --decode >> ~/.ssh/remote
+        chmod 0600 ~/.ssh/remote
+        cat <<EOT >> ~/.ssh/config
+          Host remote
+            User ${{ inputs.remote_docker_user }}
+            HostName ${{ inputs.remote_docker_host }}
+            Port ${{ inputs.remote_docker_port }}
+            IdentityFile ~/.ssh/remote
+        EOT
+
+    - name: Deploy to docker host
+      shell: bash
+      run: |
+        sudo apt -y update
+        sudo apt -y install python3-pip
+        pip3 install docker-compose
+        docker context create --docker "host=ssh://remote:${{ inputs.remote_docker_port }}" remote
+        docker context use remote
+        docker-compose ${{ inputs.args }}

@@ -1,0 +1,20 @@
+name: Test github action workflow
+
+on: workflow_dispatch
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v1
+
+      - name: Start Deployment
+        uses: KK566@deploy-docker-compose@main
+        with:
+          remote_docker_host: ${{ secrets.DOCKER_HOST }}
+          remote_docker_user: ${{ secrets.DOCKER_USER }}
+          remote_docker_port: ${{ secrets.DOCKER_PORT }}
+          base64_ssh_private_key: ${{ secrets.BASE64_SSH_PRIVATE_KEY }}
+          base64_ssh_public_key: ${{ secrets.BASE64_SSH_PUBLIC_KEY }}
+          args: -p test up -d
